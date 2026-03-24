@@ -1,0 +1,12 @@
+[project]
+name = "docling-ocr"
+version = "0.1.0"
+description = "PDF-to-markdown conversion using Docling with picture filtering"
+requires-python = ">=3.11"
+dependencies = [
+    "docling",
+    "docling-core",
+]
+
+[project.scripts]
+docling-ocr = "docling_ocr:main"

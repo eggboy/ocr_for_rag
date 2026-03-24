@@ -1,0 +1,14 @@
+[project]
+name = "contentunderstanding-ocr"
+version = "0.1.0"
+description = "OCR using Azure Content Understanding"
+requires-python = ">=3.11"
+dependencies = [
+    "azure-ai-contentunderstanding",
+    "azure-core",
+    "azure-identity",
+    "python-dotenv",
+]
+
+[project.scripts]
+contentunderstanding-ocr = "contentunderstanding_ocr:main"

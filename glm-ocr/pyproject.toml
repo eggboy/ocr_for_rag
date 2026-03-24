@@ -1,0 +1,28 @@
+[project]
+name = "glm-ocr"
+version = "0.3.0"
+description = "OCR using zai-org/GLM-OCR model via vLLM (simple + layout-aware modes)"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx",
+    "pymupdf",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+layout = [
+    "numpy",
+    "paddleocr",
+    "paddlepaddle",
+    "pillow",
+]
+
+[project.scripts]
+glm-ocr = "glm_ocr:main"
+
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

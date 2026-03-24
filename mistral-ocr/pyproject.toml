@@ -1,0 +1,13 @@
+[project]
+name = "mistral-ocr"
+version = "0.1.0"
+description = "OCR using Mistral Document AI on Azure"
+requires-python = ">=3.11"
+dependencies = [
+    "azure-identity",
+    "httpx",
+    "python-dotenv",
+]
+
+[project.scripts]
+mistral-ocr = "mistral_ocr:main"
