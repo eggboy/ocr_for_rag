@@ -180,7 +180,6 @@ Set the following environment variables (or use a `.env` file):
 |---|---|---|---|
 | `GLM_API_ENDPOINT` | **Yes**\* | `http://localhost:8000/v1/chat/completions` | OpenAI-compatible API endpoint URL |
 | `GLM_MODEL` | **Yes**\* | `model/GLM-OCR` | Model identifier (must match the model name on the server) |
-| `GLM_API_KEY` | No | — | Bearer token for the vLLM endpoint (only needed if auth is enabled) |
 
 > \* `GLM_API_ENDPOINT` and `GLM_MODEL` have defaults that work when vLLM runs
 > locally. For remote deployments (e.g. Azure Container Apps), you **must** set
@@ -191,7 +190,6 @@ Set the following environment variables (or use a `.env` file):
 ```bash
 GLM_API_ENDPOINT=https://glm-ocr.<your-fqdn>/v1/chat/completions
 GLM_MODEL=/model/GLM-OCR
-# GLM_API_KEY=your-token   # uncomment if auth is enabled
 ```
 
 ## Usage

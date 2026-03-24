@@ -184,7 +184,7 @@ def _build_payload(
                 ],
             },
         ],
-        "temperature": 0.1,
+        "temperature": 0.0,
         "max_tokens": 4096,
     }
 
@@ -406,6 +406,64 @@ def call_glm_ocr_layout(
 
 
 # ---------------------------------------------------------------------------
+# Post-processing — LLM-based OCR error correction
+# ---------------------------------------------------------------------------
+
+_CORRECTION_PROMPT = """You are an OCR error correction assistant.
+The following text was extracted via OCR from a Korean/English document.
+Fix obvious OCR misrecognition errors using surrounding context.
+
+Common error patterns to watch for:
+- "π" misrecognised from "IT" (Information Technology)
+- Similar-shaped Korean character confusion (e.g. 모→또, 슬→솔, 형→혁)
+- Garbled Korean syllables that don't form real words
+
+Rules:
+1. Only fix clear OCR mistakes — do NOT rewrite, summarise, or rephrase.
+2. Preserve all Markdown formatting (headings, lists, tables, separators).
+3. If a word looks correct in context, leave it unchanged.
+4. Return ONLY the corrected text, nothing else.
+
+OCR text:
+{ocr_text}"""
+
+
+def postprocess_ocr(text: str) -> str:
+    """Send OCR output to an LLM for error correction.
+
+    Requires ``POSTPROCESS_API_ENDPOINT`` and optionally
+    ``POSTPROCESS_API_KEY`` / ``POSTPROCESS_MODEL`` env vars.
+    """
+    endpoint = os.environ.get("POSTPROCESS_API_ENDPOINT")
+    if not endpoint:
+        raise EnvironmentError(
+            "POSTPROCESS_API_ENDPOINT must be set for post-processing. "
+            "Point it at an OpenAI-compatible /v1/chat/completions endpoint."
+        )
+
+    api_key = os.environ.get("POSTPROCESS_API_KEY", "")
+    model = os.environ.get("POSTPROCESS_MODEL", "gpt-4o")
+
+    headers: dict[str, str] = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "user", "content": _CORRECTION_PROMPT.format(ocr_text=text)},
+        ],
+        "temperature": 0.0,
+        "max_tokens": 16384,
+    }
+
+    logger.info("Post-processing OCR output via %s (model: %s) ...", endpoint, model)
+    resp = httpx.post(endpoint, json=payload, headers=headers, timeout=REQUEST_TIMEOUT)
+    resp.raise_for_status()
+    return _parse_response(resp.json())
+
+
+# ---------------------------------------------------------------------------
 # Unified entry point
 # ---------------------------------------------------------------------------
 
@@ -417,6 +475,7 @@ def analyze_document(
     prompt: str = TASK_TEXT,
     dpi: int = PDF_RENDER_DPI,
     max_workers: int = MAX_WORKERS,
+    post_process: bool = False,
 ) -> Path:
     """Analyze a document with GLM-OCR and export markdown.
 
@@ -430,6 +489,7 @@ def analyze_document(
             ``"Table Recognition:"`` and ``"Formula Recognition:"``.
         dpi: Resolution for PDF rendering.
         max_workers: Parallel workers for layout mode.
+        post_process: If True, run LLM-based OCR error correction.
 
     Returns:
         Path to the generated markdown file.
@@ -444,6 +504,9 @@ def analyze_document(
         extracted_text = call_glm_ocr_layout(source, dpi=dpi, max_workers=max_workers)
     else:
         extracted_text = call_glm_ocr(source, prompt)
+
+    if post_process:
+        extracted_text = postprocess_ocr(extracted_text)
 
     md_path = output_dir / "doc.md"
     md_path.write_text(extracted_text, encoding="utf-8")
@@ -507,6 +570,14 @@ def main() -> None:
         default=MAX_WORKERS,
         help=f"Parallel OCR workers per page, layout mode (default: {MAX_WORKERS}).",
     )
+    parser.add_argument(
+        "--postprocess",
+        action="store_true",
+        default=False,
+        help="Run LLM-based post-processing to correct OCR errors. "
+        "Requires POSTPROCESS_API_ENDPOINT env var (OpenAI-compatible endpoint). "
+        "Optional: POSTPROCESS_API_KEY, POSTPROCESS_MODEL (default: gpt-4o).",
+    )
     args = parser.parse_args()
 
     md_path = analyze_document(
@@ -516,6 +587,7 @@ def main() -> None:
         args.prompt,
         args.dpi,
         args.workers,
+        args.postprocess,
     )
     print(f"Markdown written to {md_path}")
 
